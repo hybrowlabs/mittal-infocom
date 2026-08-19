@@ -6,7 +6,7 @@ app_email = "meet@sawindia.com"
 app_license = "mit"
 
 # Apps
-# ------------------
+# -----------------
 
 # required_apps = []
 
