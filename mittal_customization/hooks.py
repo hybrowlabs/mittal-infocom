@@ -26,7 +26,10 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/mittal_customization/css/mittal_customization.css"
-app_include_js = "/assets/mittal_customization/js/serial_no_batch_selector.js"
+app_include_js = [
+    "/assets/mittal_customization/js/serial_no_batch_selector.js",
+    "/assets/mittal_customization/js/financial_statements_drilldown.js",
+]
 
 website_route_rules = [
     {"from_route": "/retailerportal", "to_route": "retailerportal"},
