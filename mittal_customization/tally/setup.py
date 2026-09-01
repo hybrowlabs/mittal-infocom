@@ -17,11 +17,10 @@ from mittal_customization.tally.config import (
 	BLOCK_OVERRIDES,
 	BLOCK_ORDER,
 	DISPLAY_LABELS,
+	OTHER_BLOCK,
 	ROOT_LEVEL_BLOCK,
 	SIDE_BY_ROOT_TYPE,
 )
-
-BALANCE_SHEET_ROOT_TYPES = ("Asset", "Liability")
 
 
 def setup_tally_reporting(company=None):
@@ -88,14 +87,14 @@ def derive_lines(company=None):
 	lines = {}
 
 	for account in accounts:
-		if account.is_group or account.root_type not in BALANCE_SHEET_ROOT_TYPES:
+		if account.is_group or account.root_type not in SIDE_BY_ROOT_TYPE:
 			continue
 
 		ancestors = get_ancestors(account, by_name)
 
-		line = get_line(account, ancestors)
-		block = get_block(ancestors, line)
 		side = SIDE_BY_ROOT_TYPE[account.root_type]
+		line = get_line(account, ancestors)
+		block = get_block(ancestors, line, side)
 		key = (side, block, line)
 
 		lines.setdefault(
@@ -147,7 +146,7 @@ def get_line(account, ancestors):
 	return account.account_name
 
 
-def get_block(ancestors, line):
+def get_block(ancestors, line, side):
 	# a group Tally lifts out of the tree becomes the block for everything beneath it
 	for ancestor in reversed(ancestors):
 		if ancestor.account_name in BLOCK_OVERRIDES:
@@ -162,7 +161,8 @@ def get_block(ancestors, line):
 	if len(ancestors) > 1:
 		return ancestors[1].account_name
 
-	return ancestors[0].account_name if ancestors else line
+	# posted straight against the root group, so it has no block of its own
+	return OTHER_BLOCK.get(side, line)
 
 
 def sort_lines(lines):

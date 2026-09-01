@@ -4,8 +4,8 @@
 
 {%- macro cell(row) -%}
 	{%- if row -%}
-		<td class="particulars indent-{{ row.indent }} {{ row.squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}">{{ row.label }}</td>
-		<td class="amount{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}">{{ amount(row.amount) }}</td>
+		<td class="particulars indent-{{ row.indent }} {{ row.squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ row.label }}</td>
+		<td class="amount {{ row.amount_squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ amount(row.amount) }}</td>
 	{%- else -%}
 		<td class="particulars"></td><td class="amount"></td>
 	{%- endif -%}
@@ -32,13 +32,15 @@
 	th.panel { text-align: left; font-weight: bold; letter-spacing: 2px; }
 	th.asat { text-align: right; font-size: 7.5pt; }
 
-	col.col-particulars { width: 31%; }
-	col.col-amount { width: 19%; }
+	col.col-particulars { width: 30%; }
+	col.col-amount { width: 20%; }
 	td.particulars { white-space: nowrap; overflow: hidden; }
 	td.particulars.small { font-size: 6.8pt; }
 	td.particulars.smaller { font-size: 5.8pt; }
 	td.particulars.tiny { font-size: 5pt; }
 	td.amount { text-align: right; white-space: nowrap; }
+	td.amount.small { font-size: 7pt; }
+	td.ruled { border-top: 1px solid #000; }
 	table.statement th:nth-child(3), table.statement td:nth-child(3) { border-left: 1px solid #000; }
 
 	.bold { font-weight: bold; }
@@ -80,9 +82,9 @@
 			<thead>
 				<tr>
 					<th class="panel">{{ headings[0] }}</th>
-					<th class="asat">{{ _("as at") }} {{ as_at }}</th>
+					<th class="asat">{{ column_head }}</th>
 					<th class="panel">{{ headings[1] }}</th>
-					<th class="asat">{{ _("as at") }} {{ as_at }}</th>
+					<th class="asat">{{ column_head }}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -99,12 +101,14 @@
 				{% for row in page.rows %}
 					<tr>{{ cell(row.left) }}{{ cell(row.right) }}</tr>
 				{% endfor %}
-				<tr class="rule carry">
-					<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
-					<td class="amount">{{ amount(page.totals[0]) }}</td>
-					<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
-					<td class="amount">{{ amount(page.totals[1]) }}</td>
-				</tr>
+				{% if page.totals %}
+					<tr class="rule carry">
+						<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
+						<td class="amount">{{ amount(page.totals[0]) }}</td>
+						<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
+						<td class="amount">{{ amount(page.totals[1]) }}</td>
+					</tr>
+				{% endif %}
 				<tr class="rule"><td colspan="4"></td></tr>
 			</tbody>
 		</table>

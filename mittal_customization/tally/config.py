@@ -44,6 +44,35 @@ BLOCK_ORDER = {
 		"Branch / Divisions",
 		"Temporary Accounts",
 	],
+	"Expenses": [
+		"Direct Expenses",
+		"Branch Purchase",
+		"Indirect Expenses",
+		"Other Expenses",
+	],
+	"Income": [
+		"Sales Accounts",
+		"Direct Income",
+		"Indirect Income",
+		"Other Income",
+	],
+}
+
+# The profit and loss statement is printed in two halves. These blocks make up the
+# trading account, which closes at Gross Profit; everything else falls below it and
+# closes at Nett Profit.
+TRADING_BLOCKS = {
+	"Expenses": ("Direct Expenses", "Branch Purchase"),
+	"Income": ("Sales Accounts", "Direct Income"),
+}
+
+# Where a ledger posted directly against the root group is printed, so that nothing is
+# left off the statement.
+OTHER_BLOCK = {
+	"Liabilities": "Other Liabilities",
+	"Assets": "Other Assets",
+	"Income": "Other Income",
+	"Expenses": "Other Expenses",
 }
 
 # The block a ledger falls into when it sits directly under the root group.

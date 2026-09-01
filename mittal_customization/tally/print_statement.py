@@ -37,6 +37,12 @@ INDENT_WIDTH = 2.4
 NARROW_CHARACTERS = set("iljtfr.,;:'`!|()[]{} ")
 WIDE_CHARACTERS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789&%@#/")
 
+# Tally's own wording for each statement
+STATEMENT_TITLES = {
+	"Balance Sheet": "Balance Sheet",
+	"Profit and Loss Statement": "Profit & Loss A/c",
+}
+
 REPORT_BY_TYPE = {
 	"Balance Sheet": "ifrs_reporting.ifrs_reporting.report.balance_sheet.balance_sheet",
 	"Profit and Loss Statement": "ifrs_reporting.ifrs_reporting.report.profit_and_loss_statement.profit_and_loss_statement",
@@ -89,32 +95,41 @@ def parse_filters(filters):
 
 def build_statement(filters):
 	report_type = frappe.db.get_value("Financial Report Template", filters.report_template, "report_type")
-	panels, period_key = run_report(filters, report_type)
+
+	# only the balance sheet carries a running total over a page break; the profit and
+	# loss account prints its own Gross Profit, Nett Profit and Total lines instead
+	carry = report_type == "Balance Sheet"
+
+	panels, period_key = run_report(filters, report_type, carry)
 
 	left, right = panels
-	pages = paginate(left, right)
+	pages = paginate(left, right, carry)
 
 	return {
-		"title": report_type,
+		"title": STATEMENT_TITLES.get(report_type, report_type),
 		"company": filters.company,
 		"address_lines": get_address_lines(filters.company),
 		"period": get_period_label(filters),
-		"as_at": formatdate(filters.period_end_date, "d-MMM-yy"),
+		# the balance sheet is a position on a date, the profit and loss a period
+		"column_head": _("as at {0}").format(formatdate(filters.period_end_date, "d-MMM-yy"))
+		if carry
+		else get_period_label(filters),
 		"headings": get_panel_headings(report_type),
 		"pages": pages,
 		"period_key": period_key,
+		"carry": carry,
 		"fmt": format_amount,
 	}
 
 
 def get_panel_headings(report_type):
 	if report_type == "Profit and Loss Statement":
-		return (_("Trading Account"), _("Income"))
+		return (_("Particulars"), _("Particulars"))
 
 	return (_("Liabilities"), _("Assets"))
 
 
-def run_report(filters, report_type):
+def run_report(filters, report_type, drop_totals):
 	module = REPORT_BY_TYPE.get(report_type)
 	if not module:
 		frappe.throw(_("{0} cannot be printed in the Tally format.").format(report_type))
@@ -123,7 +138,7 @@ def run_report(filters, report_type):
 	columns, data = execute(frappe._dict(filters))[:2]
 
 	period_key = get_period_key(columns)
-	panels = [extract_panel(data, segment, period_key) for segment in ("seg_0", "seg_1")]
+	panels = [extract_panel(data, segment, period_key, drop_totals) for segment in ("seg_0", "seg_1")]
 
 	return panels, period_key
 
@@ -138,7 +153,7 @@ def get_period_key(columns):
 	frappe.throw(_("The report returned no amount column to print."))
 
 
-def extract_panel(data, segment, period_key):
+def extract_panel(data, segment, period_key, drop_totals):
 	rows = []
 
 	for row in data:
@@ -156,11 +171,11 @@ def extract_panel(data, segment, period_key):
 
 		indent = cint(values.get("indent"))
 
-		# rows built from a account filter are the real figures; a row at the top level
-		# without one is a grand total the template computed, and the statement prints
-		# its own Total line at the foot of the last page
+		# rows built from an account filter are the real figures; a row at the top level
+		# without one is a grand total the template computed. The balance sheet prints
+		# its own Total at the foot of the last page, so those are dropped there.
 		from_accounts = bool(values.get("account_filters"))
-		if indent == 0 and not from_accounts and amount not in (None, ""):
+		if drop_totals and indent == 0 and not from_accounts and amount not in (None, ""):
 			continue
 
 		rows.append(
@@ -171,8 +186,11 @@ def extract_panel(data, segment, period_key):
 				"bold": 1 if values.get("bold") else 0,
 				"italic": 1 if values.get("italic") else 0,
 				"blank": 0,
-				"is_block": 1 if indent == 0 and from_accounts else 0,
+				"is_block": 1 if indent == 0 else 0,
 				"squeeze": get_squeeze(label, indent),
+				"amount_squeeze": "small" if amount_width(amount) > 18 else "",
+				# Tally rules off above a carried subtotal and above the closing total
+				"rule": 1 if indent == 0 and not from_accounts and label in ("", _("Total")) else 0,
 			}
 		)
 
@@ -188,6 +206,10 @@ def get_squeeze(label, indent):
 			return css_class
 
 	return "tiny"
+
+
+def amount_width(value):
+	return len(format_amount(value))
 
 
 def text_width(label):
@@ -214,6 +236,8 @@ def blank_row():
 		"blank": 1,
 		"is_block": 0,
 		"squeeze": "",
+		"amount_squeeze": "",
+		"rule": 0,
 	}
 
 
@@ -224,7 +248,7 @@ def trim(rows):
 	return rows
 
 
-def paginate(left, right):
+def paginate(left, right, carry=True):
 	"""Split the panels across pages, carrying the running total over each break.
 
 	Only the block headings count towards the running total; the lines under them are
@@ -243,7 +267,7 @@ def paginate(left, right):
 		page = {
 			"index": page_index,
 			"first": page_index == 0,
-			"brought_forward": None if page_index == 0 else list(carried),
+			"brought_forward": list(carried) if carry and page_index else None,
 			"rows": build_page_rows(left, right, start, end),
 		}
 
@@ -253,7 +277,7 @@ def paginate(left, right):
 					carried[side] += row["amount"]
 
 		page["last"] = end >= total_rows
-		page["totals"] = list(carried)
+		page["totals"] = list(carried) if carry else None
 		pages.append(page)
 
 		start = end
