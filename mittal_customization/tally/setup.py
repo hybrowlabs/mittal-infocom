@@ -24,6 +24,13 @@ from mittal_customization.tally.config import (
 
 
 def setup_tally_reporting(company=None):
+	"""Rebuild the Tally Account Groups from the chart of accounts and tag every ledger.
+
+	Safe to run repeatedly; it is called on every migrate.
+	"""
+	if not frappe.db.table_exists("Tally Account Group"):
+		return
+
 	ensure_custom_fields()
 	lines = derive_lines(company)
 	sync_tally_account_groups(lines)

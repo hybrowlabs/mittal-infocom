@@ -140,6 +140,12 @@ doctype_js = {
 # ---------------
 # Override standard doctype classes
 
+# The Tally Account Groups are derived from the chart of accounts, so they are rebuilt
+# on every migrate. A ledger added or re-parented since the last one is picked up, which
+# a once-only patch cannot do. The statement templates are not rebuilt here, so edits
+# made to them in the desk survive a migrate.
+after_migrate = ["mittal_customization.tally.setup.setup_tally_reporting"]
+
 override_doctype_class = {
 	"Serial and Batch Bundle": "mittal_customization.overrides.serial_and_batch_bundle.CustomSerialandBatchBundle"
 }
