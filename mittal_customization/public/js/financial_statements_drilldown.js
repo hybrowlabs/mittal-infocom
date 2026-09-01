@@ -1,6 +1,10 @@
 // Drill-down on Receivable / Payable accounts in the financial statements opens the
 // Accounts Receivable Summary and Accounts Payable Summary reports instead of the
 // detailed Accounts Receivable / Accounts Payable reports.
+//
+// Applies wherever erpnext.financial_statements.open_general_ledger is used: the
+// Balance Sheet, the Profit and Loss Statement, the Trial Balance and the Tally format
+// templates.
 
 frappe.provide("erpnext.financial_statements");
 frappe.provide("frappe.query_reports");
@@ -60,13 +64,40 @@ frappe.provide("frappe.query_reports");
 		});
 	}
 
+	// A row carries every account it was built from, one for a ledger and several for a
+	// group. Only a single account can be handed to the summary reports, which filter on
+	// one party account.
+	function single_account(data) {
+		const account = data.account || data.accounts;
+
+		if (Array.isArray(account)) {
+			return account.length == 1 ? account[0] : null;
+		}
+
+		return account || null;
+	}
+
 	const open_general_ledger = erpnext.financial_statements.open_general_ledger;
 
 	erpnext.financial_statements.open_general_ledger = function (data) {
-		if (!data || !summary_reports[data.account_type]) {
-			return open_general_ledger.apply(this, arguments);
-		}
+		if (!data) return open_general_ledger.apply(this, arguments);
 		if (!data.account && !data.accounts) return;
+
+		const account = single_account(data);
+
+		// The Trial Balance does not select account_type, and neither do the rows of a
+		// Tally format template, so look it up before deciding which report to open.
+		if (data.account_type === undefined && account) {
+			frappe.db.get_value("Account", account, "account_type").then((r) => {
+				data.account_type = (r.message && r.message.account_type) || "";
+				erpnext.financial_statements.open_general_ledger(data);
+			});
+			return;
+		}
+
+		if (!summary_reports[data.account_type] || !account) {
+			return open_general_ledger.call(this, data);
+		}
 
 		const filters = frappe.query_report.filters;
 		const get_value = (fieldname) => {
@@ -76,7 +107,7 @@ frappe.provide("frappe.query_reports");
 
 		frappe.route_options = {
 			company: frappe.query_report.get_filter_value("company"),
-			party_account: data.account,
+			party_account: account,
 			report_date: data.to_date || data.year_end_date,
 			project: get_value("project"),
 			cost_center: get_value("cost_center"),
