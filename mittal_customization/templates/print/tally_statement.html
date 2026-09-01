@@ -4,8 +4,8 @@
 
 {%- macro cell(row) -%}
 	{%- if row -%}
-		<td class="particulars indent-{{ row.indent }} {{ row.squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ row.label }}</td>
-		<td class="amount {{ row.amount_squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ amount(row.amount) }}</td>
+		<td class="particulars indent-{{ row.indent }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ row.label }}</td>
+		<td class="amount{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}{% if row.rule %} ruled{% endif %}">{{ amount(row.amount) }}</td>
 	{%- else -%}
 		<td class="particulars"></td><td class="amount"></td>
 	{%- endif -%}
@@ -26,7 +26,7 @@
 	.running-head .name { font-weight: bold; }
 
 	table.statement { width: 100%; border-collapse: collapse; table-layout: fixed; }
-	table.statement th, table.statement td { padding: 1px 4px; vertical-align: bottom; line-height: 1.25; }
+	table.statement th, table.statement td { padding: 1px 4px; vertical-align: top; line-height: 1.25; }
 
 	table.statement thead th { border-top: 1px solid #000; border-bottom: 1px solid #000; font-weight: normal; }
 	th.panel { text-align: left; font-weight: bold; letter-spacing: 2px; }
@@ -34,12 +34,8 @@
 
 	col.col-particulars { width: 30%; }
 	col.col-amount { width: 20%; }
-	td.particulars { white-space: nowrap; overflow: hidden; }
-	td.particulars.small { font-size: 6.8pt; }
-	td.particulars.smaller { font-size: 5.8pt; }
-	td.particulars.tiny { font-size: 5pt; }
+	td.particulars { word-wrap: break-word; }
 	td.amount { text-align: right; white-space: nowrap; }
-	td.amount.small { font-size: 7pt; }
 	td.ruled { border-top: 1px solid #000; }
 	table.statement th:nth-child(3), table.statement td:nth-child(3) { border-left: 1px solid #000; }
 

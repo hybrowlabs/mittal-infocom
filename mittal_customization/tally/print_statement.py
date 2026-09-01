@@ -10,6 +10,7 @@ Total rule.
 """
 
 import json
+import math
 
 import frappe
 from frappe import _
@@ -27,11 +28,12 @@ TEMPLATE = "mittal_customization/templates/print/tally_statement.html"
 LINES_FIRST_PAGE = 34
 LINES_PER_PAGE = 40
 
-# A name too long for the particulars column is set in a smaller size rather than
-# wrapped, the way Tally does it, so every row is one line and a page holds a known
-# number of them. Widths are measured in units of an average lower case character,
-# because a name in capitals takes noticeably more room than its length suggests.
-SQUEEZE_WIDTHS = ((24.0, ""), (28.5, "small"), (34.0, "smaller"))
+# A name too long for the particulars column wraps onto a second line. Tally shrinks it
+# instead, but the chart of accounts here has enough long ledger names for that to leave
+# three or four type sizes on a page, which reads badly. Widths are measured in units of
+# an average lower case character, because a name in capitals takes noticeably more room
+# than its length suggests.
+LINE_CAPACITY = 24.0
 INDENT_WIDTH = 2.4
 
 NARROW_CHARACTERS = set("iljtfr.,;:'`!|()[]{} ")
@@ -187,8 +189,7 @@ def extract_panel(data, segment, period_key, drop_totals):
 				"italic": 1 if values.get("italic") else 0,
 				"blank": 0,
 				"is_block": 1 if indent == 0 else 0,
-				"squeeze": get_squeeze(label, indent),
-				"amount_squeeze": "small" if amount_width(amount) > 18 else "",
+				"lines": get_lines(label, indent),
 				# Tally rules off above a carried subtotal and above the closing total
 				"rule": 1 if indent == 0 and not from_accounts and label in ("", _("Total")) else 0,
 			}
@@ -197,19 +198,11 @@ def extract_panel(data, segment, period_key, drop_totals):
 	return trim(rows)
 
 
-def get_squeeze(label, indent):
-	"""How much to shrink a name that will not fit the column at full size."""
+def get_lines(label, indent):
+	"""Lines a name takes in the particulars column."""
 	width = text_width(label) + indent * INDENT_WIDTH
 
-	for limit, css_class in SQUEEZE_WIDTHS:
-		if width <= limit:
-			return css_class
-
-	return "tiny"
-
-
-def amount_width(value):
-	return len(format_amount(value))
+	return max(1, math.ceil(width / LINE_CAPACITY))
 
 
 def text_width(label):
@@ -235,8 +228,7 @@ def blank_row():
 		"italic": 0,
 		"blank": 1,
 		"is_block": 0,
-		"squeeze": "",
-		"amount_squeeze": "",
+		"lines": 1,
 		"rule": 0,
 	}
 
@@ -307,8 +299,7 @@ def fill_page(left, right, start, total_rows, budget):
 
 
 def row_lines(row):
-	# names are shrunk rather than wrapped, so every row occupies exactly one line
-	return 1
+	return row["lines"] if row else 1
 
 
 def build_page_rows(left, right, start, end):
