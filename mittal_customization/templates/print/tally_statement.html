@@ -1,0 +1,115 @@
+{%- macro amount(value) -%}
+	{%- if value is not none -%}{{ fmt(value) }}{%- endif -%}
+{%- endmacro -%}
+
+{%- macro cell(row) -%}
+	{%- if row -%}
+		<td class="particulars indent-{{ row.indent }} {{ row.squeeze }}{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}">{{ row.label }}</td>
+		<td class="amount{% if row.bold %} bold{% endif %}{% if row.italic %} italic{% endif %}">{{ amount(row.amount) }}</td>
+	{%- else -%}
+		<td class="particulars"></td><td class="amount"></td>
+	{%- endif -%}
+{%- endmacro -%}
+
+<style>
+	.tally-statement { font-family: Arial, Helvetica, sans-serif; font-size: 8pt; color: #000; }
+	.tally-page { page-break-after: always; }
+	.tally-page:last-child { page-break-after: auto; }
+
+	.letterhead { text-align: center; line-height: 1.35; }
+	.letterhead .name { font-weight: bold; font-size: 11pt; }
+	.letterhead .phone { text-decoration: underline; }
+	.statement-title { text-align: center; font-weight: bold; font-size: 10pt; margin-top: 10px; }
+	.statement-period { text-align: center; font-size: 8pt; margin-bottom: 6px; }
+
+	.running-head { line-height: 1.3; margin-bottom: 4px; }
+	.running-head .name { font-weight: bold; }
+
+	table.statement { width: 100%; border-collapse: collapse; table-layout: fixed; }
+	table.statement th, table.statement td { padding: 1px 4px; vertical-align: bottom; line-height: 1.25; }
+
+	table.statement thead th { border-top: 1px solid #000; border-bottom: 1px solid #000; font-weight: normal; }
+	th.panel { text-align: left; font-weight: bold; letter-spacing: 2px; }
+	th.asat { text-align: right; font-size: 7.5pt; }
+
+	col.col-particulars { width: 31%; }
+	col.col-amount { width: 19%; }
+	td.particulars { white-space: nowrap; overflow: hidden; }
+	td.particulars.small { font-size: 6.8pt; }
+	td.particulars.smaller { font-size: 5.8pt; }
+	td.particulars.tiny { font-size: 5pt; }
+	td.amount { text-align: right; white-space: nowrap; }
+	table.statement th:nth-child(3), table.statement td:nth-child(3) { border-left: 1px solid #000; }
+
+	.bold { font-weight: bold; }
+	.italic { font-style: italic; }
+	.indent-1 { padding-left: 14px !important; }
+	.indent-2 { padding-left: 28px !important; }
+	.indent-3 { padding-left: 42px !important; }
+
+	tr.rule td { border-top: 1px solid #000; }
+	tr.carry td.particulars { font-weight: bold; letter-spacing: 2px; }
+	tr.carry td.amount { font-weight: bold; }
+	.continued { text-align: right; font-size: 8pt; margin-top: 4px; }
+</style>
+
+<div class="tally-statement">
+	{% for page in pages %}
+	<div class="tally-page">
+		{% if page.first %}
+			<div class="letterhead">
+				<div class="name">{{ company }}</div>
+				{% for line in address_lines %}
+					<div{% if loop.last %} class="phone"{% endif %}>{{ line }}</div>
+				{% endfor %}
+			</div>
+			<div class="statement-title">{{ title }}</div>
+			<div class="statement-period">{{ period }}</div>
+		{% else %}
+			<div class="running-head">
+				<div class="name">{{ company }}</div>
+				<div>{{ title }} : {{ period }}</div>
+			</div>
+		{% endif %}
+
+		<table class="statement">
+			<colgroup>
+				<col class="col-particulars"><col class="col-amount">
+				<col class="col-particulars"><col class="col-amount">
+			</colgroup>
+			<thead>
+				<tr>
+					<th class="panel">{{ headings[0] }}</th>
+					<th class="asat">{{ _("as at") }} {{ as_at }}</th>
+					<th class="panel">{{ headings[1] }}</th>
+					<th class="asat">{{ _("as at") }} {{ as_at }}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% if page.brought_forward %}
+					<tr class="carry">
+						<td class="particulars">{{ _("Brought Forward") }}</td>
+						<td class="amount">{{ amount(page.brought_forward[0]) }}</td>
+						<td class="particulars">{{ _("Brought Forward") }}</td>
+						<td class="amount">{{ amount(page.brought_forward[1]) }}</td>
+					</tr>
+					<tr class="rule"><td colspan="4"></td></tr>
+				{% endif %}
+
+				{% for row in page.rows %}
+					<tr>{{ cell(row.left) }}{{ cell(row.right) }}</tr>
+				{% endfor %}
+				<tr class="rule carry">
+					<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
+					<td class="amount">{{ amount(page.totals[0]) }}</td>
+					<td class="particulars">{{ _("Total") if page.last else _("Carried Over") }}</td>
+					<td class="amount">{{ amount(page.totals[1]) }}</td>
+				</tr>
+				<tr class="rule"><td colspan="4"></td></tr>
+			</tbody>
+		</table>
+
+		{% if not page.last %}<div class="continued">{{ _("continued ...") }}</div>{% endif %}
+	</div>
+	{% endfor %}
+</div>

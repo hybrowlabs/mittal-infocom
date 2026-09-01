@@ -29,6 +29,7 @@ app_license = "mit"
 app_include_js = [
     "/assets/mittal_customization/js/serial_no_batch_selector.js",
     "/assets/mittal_customization/js/financial_statements_drilldown.js",
+    "/assets/mittal_customization/js/tally_statement_print.js",
 ]
 
 website_route_rules = [
