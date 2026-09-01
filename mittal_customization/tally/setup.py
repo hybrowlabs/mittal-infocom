@@ -128,6 +128,13 @@ def get_ancestors(account, by_name):
 	return ancestors
 
 
+def clean(name):
+	"""Account names in the chart carry the odd trailing space. Frappe strips it when
+	it names the group record, so the name has to be stripped here too or the link
+	stored on the ledger will not match the record."""
+	return (name or "").strip()
+
+
 def get_line(account, ancestors):
 	"""The group a ledger is printed under, one level below its block.
 
@@ -137,20 +144,20 @@ def get_line(account, ancestors):
 	"""
 	depth = 2
 
-	while len(ancestors) > depth and ancestors[depth].account_name in BLOCK_OVERRIDES:
+	while len(ancestors) > depth and clean(ancestors[depth].account_name) in BLOCK_OVERRIDES:
 		depth += 1
 
 	if len(ancestors) > depth:
-		return ancestors[depth].account_name
+		return clean(ancestors[depth].account_name)
 
-	return account.account_name
+	return clean(account.account_name)
 
 
 def get_block(ancestors, line, side):
 	# a group Tally lifts out of the tree becomes the block for everything beneath it
 	for ancestor in reversed(ancestors):
-		if ancestor.account_name in BLOCK_OVERRIDES:
-			return BLOCK_OVERRIDES[ancestor.account_name]
+		if clean(ancestor.account_name) in BLOCK_OVERRIDES:
+			return BLOCK_OVERRIDES[clean(ancestor.account_name)]
 
 	if line in BLOCK_OVERRIDES:
 		return BLOCK_OVERRIDES[line]
@@ -159,7 +166,7 @@ def get_block(ancestors, line, side):
 		return ROOT_LEVEL_BLOCK[line]
 
 	if len(ancestors) > 1:
-		return ancestors[1].account_name
+		return clean(ancestors[1].account_name)
 
 	# posted straight against the root group, so it has no block of its own
 	return OTHER_BLOCK.get(side, line)

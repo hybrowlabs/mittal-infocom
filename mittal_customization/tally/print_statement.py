@@ -25,7 +25,7 @@ TEMPLATE = "mittal_customization/templates/print/tally_statement.html"
 # engine break it again in the wrong place. The first page carries the address block
 # so it holds fewer.
 LINES_FIRST_PAGE = 34
-LINES_PER_PAGE = 44
+LINES_PER_PAGE = 40
 
 # A name too long for the particulars column is set in a smaller size rather than
 # wrapped, the way Tally does it, so every row is one line and a page holds a known
