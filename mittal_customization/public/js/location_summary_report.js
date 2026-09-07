@@ -1,6 +1,6 @@
 // Shared settings for the two Location Summary reports.
 //
-// "Location Summary" carries Rate and Value, "Location Summary (Quantity)" does not.
+// "Location Summary" carries Rate and Value, "Location Summary Quantity" does not.
 // Everything else about them -- filters, the tree layout, the Tally format export and
 // the help -- is the same, so it is defined once here and both report scripts ask for
 // it. Keeping one definition is what stops the two reports drifting apart.

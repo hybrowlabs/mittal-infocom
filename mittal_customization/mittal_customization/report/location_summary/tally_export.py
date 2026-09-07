@@ -26,7 +26,7 @@ from mittal_customization.mittal_customization.report.location_summary.location_
 )
 
 VALUE_REPORT = "Location Summary"
-QUANTITY_REPORT = "Location Summary (Quantity)"
+QUANTITY_REPORT = "Location Summary Quantity"
 
 QTY_FORMAT = '0" no"'
 AMOUNT_FORMAT = "0.00"
@@ -60,7 +60,7 @@ def download_tally_format(filters, report_name=VALUE_REPORT):
 
 	# The report the export is asked for decides whether value is included, so its own
 	# roles have to be checked here. Permission on the stock ledger alone would let a
-	# reader of Location Summary (Quantity) ask for the file that carries the value.
+	# reader of Location Summary Quantity ask for the file that carries the value.
 	if not frappe.get_doc("Report", report_name).is_permitted():
 		raise frappe.PermissionError
 
@@ -92,7 +92,7 @@ def get_column_groups(filters, warehouses, show_value=True):
 	"""The columns shown under each location, plus the total if it is shown.
 
 	Quantity, Rate and Value for Location Summary; Quantity alone for Location Summary
-	(Quantity), which is why a group is a list rather than a fixed triple.
+	Quantity, which is why a group is a list rather than a fixed triple.
 	"""
 
 	def columns_for(key):

@@ -12,11 +12,11 @@
  "modified": "2026-09-07 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Mittal Customization",
- "name": "Location Summary (Quantity)",
+ "name": "Location Summary Quantity",
  "owner": "Administrator",
  "prepared_report": 0,
  "ref_doctype": "Stock Ledger Entry",
- "report_name": "Location Summary (Quantity)",
+ "report_name": "Location Summary Quantity",
  "report_type": "Script Report",
  "roles": [
   {
