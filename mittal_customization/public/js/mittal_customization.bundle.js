@@ -6,5 +6,6 @@
 // running the previous copy.
 
 import "./serial_no_batch_selector.js";
+import "./location_summary_report.js";
 import "./financial_statements_drilldown.js";
 import "./tally_statement_print.js";
