@@ -301,8 +301,7 @@ def get_columns(filters, warehouses):
 			{
 				"label": _("{0} - Qty").format(label),
 				"fieldname": f"{key}_qty",
-				"fieldtype": "Float",
-				"precision": 2,
+				"fieldtype": "Int",
 				"width": 100,
 			},
 			{
@@ -324,8 +323,7 @@ def get_columns(filters, warehouses):
 			{
 				"label": _("Total Qty"),
 				"fieldname": "total_qty",
-				"fieldtype": "Float",
-				"precision": 2,
+				"fieldtype": "Int",
 				"width": 100,
 			},
 			{
