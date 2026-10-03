@@ -1,10 +1,9 @@
 import csv
+import re
 
 import frappe
 from erpnext.stock.doctype.serial_and_batch_bundle.serial_and_batch_bundle import (
 	SerialandBatchBundle,
-	SerialNoDuplicateError,
-	SerialNoWarehouseError,
 	get_auto_batch_nos,
 	get_batch,
 	get_non_expired_batches,
@@ -21,86 +20,33 @@ from frappe.utils import cint, flt, now, nowtime, parse_json
 
 
 class CustomSerialandBatchBundle(SerialandBatchBundle):
-	def validate_serial_nos_inventory(self):
-		if not (self.has_serial_no and self.type_of_transaction == "Outward"):
-			return
+	def throw_error_message(self, message, exception=frappe.ValidationError):
+		"""
+		Customization Code Showcase Scan Value
 
-		serial_nos = [d.serial_no for d in self.entries if d.serial_no]
-		kwargs = {
-			"item_code": self.item_code,
-			"warehouse": self.warehouse,
-			"check_serial_nos": True,
-			"serial_nos": serial_nos,
-		}
-		if self.voucher_type == "POS Invoice":
-			kwargs["ignore_voucher_nos"] = [self.voucher_no]
-
-		available_serial_nos = get_available_serial_nos(frappe._dict(kwargs))
-
-		serial_no_warehouse = {}
-		for data in available_serial_nos:
-			if data.serial_no not in serial_nos:
-				continue
-
-			serial_no_warehouse[data.serial_no] = data.warehouse
-
-		for serial_no in serial_nos:
-			if not serial_no_warehouse.get(serial_no) or serial_no_warehouse.get(serial_no) != self.warehouse:
-				"""
-					Customization Code Showcase Scan Value
-				"""
-				serial_no_value = frappe.db.get_value(
-					"Serial No", serial_no, "custom_imei_no_1"
-				) or frappe.db.get_value("Serial No", serial_no, "custom_serial_no_id")
-				self.throw_error_message(
-					f"Serial No {bold(serial_no_value)} is not present in the warehouse {bold(self.warehouse)}.",
-					SerialNoWarehouseError,
+		Core builds its messages with the Serial No name, which here is a random
+		10 char hash. Mittal users only ever see the scanned IMEI / Serial No ID,
+		so swap the serial names for their scan value before throwing. Only the
+		values labelled as a serial no are touched, so warehouse names and other
+		bolded text in the message are left alone. The validation logic itself
+		stays in erpnext and keeps receiving upstream fixes.
+		"""
+		def to_scan_values(match):
+			scan_values = []
+			for serial_no in match.group(2).split(", "):
+				scan_value = frappe.db.get_value(
+					"Serial No", serial_no, ["custom_imei_no_1", "custom_serial_no_id"], as_dict=True
+				)
+				scan_values.append(
+					(scan_value and (scan_value.custom_imei_no_1 or scan_value.custom_serial_no_id))
+					or serial_no
 				)
 
-	def validate_serial_nos_duplicate(self):
-		# Don't inward same serial number multiple times
-		if self.voucher_type in ["POS Invoice", "Pick List"]:
-			return
+			return match.group(1) + bold(", ".join(scan_values))
 
-		if not self.warehouse:
-			return
+		message = re.sub(r"(Serial Nos? )<strong>(.*?)</strong>", to_scan_values, message)
 
-		if self.voucher_type in ["Stock Reconciliation", "Stock Entry"] and self.docstatus != 1:
-			return
-
-		if not (self.has_serial_no and self.type_of_transaction == "Inward"):
-			return
-
-		serial_nos = [d.serial_no for d in self.entries if d.serial_no]
-		kwargs = frappe._dict(
-			{
-				"item_code": self.item_code,
-				"posting_date": self.posting_date,
-				"posting_time": self.posting_time,
-				"serial_nos": serial_nos,
-				"check_serial_nos": True,
-			}
-		)
-
-		if self.returned_against and self.docstatus == 1:
-			kwargs["ignore_voucher_detail_no"] = self.voucher_detail_no
-
-		if self.docstatus == 1:
-			kwargs["voucher_no"] = self.voucher_no
-
-		available_serial_nos = get_available_serial_nos(kwargs)
-		for data in available_serial_nos:
-			if data.serial_no in serial_nos:
-				"""
-					Customization Code Showcase Scan Value
-				"""
-				serial_no_value = frappe.db.get_value(
-					"Serial No", data.serial_no, "custom_imei_no_1"
-				) or frappe.db.get_value("Serial No", data.serial_no, "custom_serial_no_id")
-				self.throw_error_message(
-					f"Serial No {bold(serial_no_value)} is already present in the warehouse {bold(data.warehouse)}.",
-					SerialNoDuplicateError,
-				)
+		super().throw_error_message(message, exception)
 
 	def on_submit(self):
 		super().on_submit()
