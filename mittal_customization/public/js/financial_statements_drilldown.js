@@ -64,17 +64,67 @@ frappe.provide("frappe.query_reports");
 		});
 	}
 
-	// A row carries every account it was built from, one for a ledger and several for a
-	// group. Only a single account can be handed to the summary reports, which filter on
-	// one party account.
-	function single_account(data) {
+	// A row carries every account it was built from: one account for a ledger line,
+	// several for a group line such as "Sundry Debtors" or "Sundry Creditors".
+	function account_list(data) {
 		const account = data.account || data.accounts;
 
-		if (Array.isArray(account)) {
-			return account.length == 1 ? account[0] : null;
-		}
+		if (Array.isArray(account)) return account.filter(Boolean);
 
-		return account || null;
+		return account ? [account] : [];
+	}
+
+	// The party type a row drills down to, or "" for the general ledger.
+	//
+	// A single ledger is decided by its own account_type. A group line is only a party
+	// group when every one of its ledgers is the same party type, or when the group
+	// account they hang off is itself typed -- "Sundry Creditors - MIPL" is a Payable
+	// group whose ledgers are mostly untyped. Ignoring untyped ledgers instead would
+	// misread a mixed group: "Loans & Advances (Asset)" holds one receivable among six
+	// plain ledgers, and belongs in the general ledger.
+	//
+	// Sent as a POST: a group can hold a couple of hundred accounts, which is past what
+	// a query string takes.
+	function party_type_of(accounts) {
+		return frappe
+			.call({
+				method: "frappe.client.get_list",
+				args: {
+					doctype: "Account",
+					filters: { name: ["in", accounts] },
+					fields: ["account_type", "parent_account"],
+					limit_page_length: 0,
+				},
+			})
+			.then((r) => {
+				const rows = r.message || [];
+				if (!rows.length) return "";
+
+				const types = new Set(rows.map((row) => row.account_type || ""));
+				if (types.size == 1) {
+					const [type] = Array.from(types);
+					if (summary_reports[type]) return type;
+				}
+
+				// Fall back to the group the ledgers hang off, but only for a group
+				// line. A single untyped ledger keeps going to the general ledger: its
+				// parent being a party group says nothing about the ledger itself, and
+				// the summary filtered on it would come back empty.
+				if (rows.length < 2) return "";
+
+				// Only when they share one group, so a row spanning several is not
+				// mistyped.
+				const parents = new Set(rows.map((row) => row.parent_account || ""));
+				if (parents.size != 1) return "";
+
+				const [parent] = Array.from(parents);
+				if (!parent) return "";
+
+				return frappe.db.get_value("Account", parent, "account_type").then((p) => {
+					const type = (p.message && p.message.account_type) || "";
+					return summary_reports[type] ? type : "";
+				});
+			});
 	}
 
 	const open_general_ledger = erpnext.financial_statements.open_general_ledger;
@@ -83,19 +133,20 @@ frappe.provide("frappe.query_reports");
 		if (!data) return open_general_ledger.apply(this, arguments);
 		if (!data.account && !data.accounts) return;
 
-		const account = single_account(data);
+		const accounts = account_list(data);
 
-		// The Trial Balance does not select account_type, and neither do the rows of a
-		// Tally format template, so look it up before deciding which report to open.
-		if (data.account_type === undefined && account) {
-			frappe.db.get_value("Account", account, "account_type").then((r) => {
-				data.account_type = (r.message && r.message.account_type) || "";
+		// Neither the Trial Balance nor a row of a Tally format template selects
+		// account_type, so resolve it from the accounts before choosing the report.
+		// Assigning "" rather than leaving it undefined terminates the recursion.
+		if (data.account_type === undefined && accounts.length) {
+			party_type_of(accounts).then((account_type) => {
+				data.account_type = account_type;
 				erpnext.financial_statements.open_general_ledger(data);
 			});
 			return;
 		}
 
-		if (!summary_reports[data.account_type] || !account) {
+		if (!summary_reports[data.account_type] || !accounts.length) {
 			return open_general_ledger.call(this, data);
 		}
 
@@ -107,7 +158,6 @@ frappe.provide("frappe.query_reports");
 
 		frappe.route_options = {
 			company: frappe.query_report.get_filter_value("company"),
-			party_account: account,
 			report_date: data.to_date || data.year_end_date,
 			project: get_value("project"),
 			cost_center: get_value("cost_center"),
@@ -123,6 +173,17 @@ frappe.provide("frappe.query_reports");
 				frappe.route_options[f.df.fieldname] = value;
 			}
 		});
+
+		// The summary reports filter on a single party ledger. A group line covers
+		// several of them, and a statement row for a group account hands over the group
+		// itself, which carries no postings. Leave the filter unset in both cases, so
+		// the report falls back to every account of this type in the company. The
+		// Balance Sheet calls the flag is_group, the Trial Balance is_group_account.
+		const is_group = data.is_group || data.is_group_account;
+
+		if (accounts.length == 1 && !is_group) {
+			frappe.route_options.party_account = accounts[0];
+		}
 
 		frappe.set_route("query-report", summary_reports[data.account_type]);
 	};
