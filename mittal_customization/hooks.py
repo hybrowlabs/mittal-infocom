@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/mittal_customization/css/mittal_customization.css"
-app_include_js = "/assets/mittal_customization/js/serial_no_batch_selector.js"
+app_include_js = "mittal_customization.bundle.js"
 
 website_route_rules = [
     {"from_route": "/retailerportal", "to_route": "retailerportal"},
@@ -47,7 +47,10 @@ website_route_rules = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+	"Journal Entry": "public/js/journal_entry.js",
+	"Payment Entry": "public/js/payment_entry.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -132,6 +135,12 @@ website_route_rules = [
 # DocType Class
 # ---------------
 # Override standard doctype classes
+
+# The Tally Account Groups are derived from the chart of accounts, so they are rebuilt
+# on every migrate. A ledger added or re-parented since the last one is picked up, which
+# a once-only patch cannot do. The statement templates are not rebuilt here, so edits
+# made to them in the desk survive a migrate.
+after_migrate = ["mittal_customization.tally.setup.setup_tally_reporting"]
 
 override_doctype_class = {
 	"Serial and Batch Bundle": "mittal_customization.overrides.serial_and_batch_bundle.CustomSerialandBatchBundle"
